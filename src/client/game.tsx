@@ -6,6 +6,7 @@ import { context, showToast } from '@devvit/web/client';
 import { fold, solve, toStrip, visible, type Dir, type Move, type Puzzle, type Strip } from '../shared/crease';
 import type { CompleteResponse, InitResponse, Me, Stats } from '../shared/api';
 import { StripView } from './StripView';
+import { HowTo } from './HowTo';
 import { GLYPHS, INKS } from './inks';
 
 const FOLD_MS = 420;
@@ -45,6 +46,7 @@ export const App = () => {
   const [stats, setStats] = useState<Stats | null>(null);
   const [replay, setReplay] = useState(false);
   const [hint, setHint] = useState(!seenHint());
+  const [help, setHelp] = useState(false);
   const journey = useRef<string | null>(null);
   const [sent, setSent] = useState({ comment: false, sub: false });
 
@@ -127,6 +129,7 @@ export const App = () => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (help) return;
       const n = strip.length;
       if (e.key === 'ArrowRight') setCrease((c) => Math.min(n - 1, (c ?? 0) + 1));
       else if (e.key === 'ArrowLeft') setCrease((c) => Math.max(1, (c ?? n) - 1));
@@ -157,15 +160,21 @@ export const App = () => {
             {!data.isToday && <span className="tag">archive</span>}
           </div>
         </div>
-        {!showResult && (
-          <div className="counter" aria-live="polite">
-            <b>{moves.length}</b>
-            <span>
-              fold{moves.length === 1 ? '' : 's'} · par {puzzle.par}
-            </span>
-          </div>
-        )}
+        <div className="top-right">
+          {!showResult && (
+            <div className="counter" aria-live="polite">
+              <b>{moves.length}</b>
+              <span>
+                fold{moves.length === 1 ? '' : 's'} · par {puzzle.par}
+              </span>
+            </div>
+          )}
+          <button className="help" onClick={() => setHelp(true)} aria-label="How to play">
+            ?
+          </button>
+        </div>
       </header>
+      {help && <HowTo par={puzzle.par} onClose={() => setHelp(false)} />}
 
       {showResult ? (
         <Result

@@ -50,6 +50,11 @@ export const Splash = () => {
             </span>
             <StripView colors={p.target} size="sm" label="Target" />
           </div>
+          <ol className="steps">
+            <li>Tap a crease between squares</li>
+            <li>Tap a side — it flips over on top</li>
+            <li>Match the target in par</li>
+          </ol>
         </>
       ) : (
         <div className="meta loading">Unfolding…</div>

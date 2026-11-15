@@ -29,7 +29,11 @@ export const createDailyPost = async (date = todayUTC()) => {
   try {
     const c = await reddit.submitComment({
       id: post.id,
-      text: `Fold results for Crease #${p.number} go here 👇 Tips and strategy welcome as top-level comments (spoiler-tag your folds!).`,
+      text: [
+        `**How to play Crease #${p.number}:** tap a crease between two squares, then tap the side to fold over. The folded part flips and lands on top (its order reverses). Make the strip match the target in ${p.par} folds.`,
+        '',
+        'Share your result as a reply here 👇 Strategy talk welcome as top-level comments; spoiler-tag your folds with >!like this!<.',
+      ].join('\n'),
     });
     await c.distinguish(true);
     await redis.set(`post:${post.id}:sticky`, c.id);
