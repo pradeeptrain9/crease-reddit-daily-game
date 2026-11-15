@@ -10,7 +10,7 @@ export type Me = {
   streak: number;
   best: number;
   solvedDays: number;
-  result: { folds: number; moves: Move[] } | null; // today's result on this post
+  result: { folds: number; moves: Move[]; hints?: number } | null; // today's result on this post
 };
 
 export type InitResponse = {
@@ -20,5 +20,5 @@ export type InitResponse = {
   stats: Stats;
 };
 
-export type CompleteRequest = { moves: Move[]; journeyId?: string };
+export type CompleteRequest = { moves: Move[]; hints?: number; journeyId?: string };
 export type CompleteResponse = { ok: true; me: Me; stats: Stats } | { ok: false; error: string };

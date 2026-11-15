@@ -578,3 +578,14 @@ button:focus-visible {
     border-radius: 16px;
   }
 }
+
+.half.hinted {
+  outline: 2px dashed var(--ink);
+  outline-offset: 4px;
+  animation: nudge 1.2s ease-in-out infinite;
+}
+@keyframes nudge {
+  50% {
+    outline-offset: 7px;
+  }
+}

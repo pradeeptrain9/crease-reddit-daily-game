@@ -44,8 +44,12 @@ export const allMoves = (len: number): Move[] => {
 };
 
 /** Shortest fold sequence making `colors` show `target`, searching up to maxDepth. null if none. */
-export const solve = (colors: number[], target: number[], maxDepth: number): Move[] | null => {
-  let frontier: { s: Strip; path: Move[] }[] = [{ s: toStrip(colors), path: [] }];
+export const solve = (colors: number[], target: number[], maxDepth: number): Move[] | null =>
+  solveFrom(toStrip(colors), target, maxDepth);
+
+/** Same search, starting from a strip that may already be folded (used for hints). */
+export const solveFrom = (start: Strip, target: number[], maxDepth: number): Move[] | null => {
+  let frontier: { s: Strip; path: Move[] }[] = [{ s: start, path: [] }];
   const seen = new Set<string>();
   for (let d = 0; d <= maxDepth; d++) {
     const next: typeof frontier = [];

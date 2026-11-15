@@ -33,7 +33,8 @@ export const HowTo = ({ par, onClose }: { par: number; onClose: () => void }) =>
             </div>
           </li>
           <li>
-            <b>Match the target</b> shown at the top. Today’s best is {par} folds. Undo and Restart are free.
+            <b>Match the target</b> shown at the top. Today’s best is {par} folds. Undo and Restart are free. Stuck? <b>Hint</b> shows the next
+            crease, tap again for the side. Hints are noted on your score.
           </li>
         </ol>
         <p className="fine">Everyone gets the same strip each day. Solve it to keep your streak and see how others folded.</p>

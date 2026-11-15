@@ -3,7 +3,7 @@ import './index.css';
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createRoot } from 'react-dom/client';
 import { context, showToast } from '@devvit/web/client';
-import { fold, solve, toStrip, visible, type Dir, type Move, type Puzzle, type Strip } from '../shared/crease';
+import { fold, solve, solveFrom, toStrip, visible, type Dir, type Move, type Puzzle, type Strip } from '../shared/crease';
 import type { CompleteResponse, InitResponse, Me, Stats } from '../shared/api';
 import { StripView } from './StripView';
 import { HowTo } from './HowTo';
@@ -47,6 +47,10 @@ export const App = () => {
   const [replay, setReplay] = useState(false);
   const [hint, setHint] = useState(!seenHint());
   const [help, setHelp] = useState(false);
+  // tip.mv null = no short route from the current state
+  const [tip, setTip] = useState<{ mv: Move | null; level: 1 | 2 } | null>(null);
+  const [tips, setTips] = useState(0);
+  const tipsRef = useRef(0);
   const journey = useRef<string | null>(null);
   const [sent, setSent] = useState({ comment: false, sub: false });
 
@@ -72,7 +76,11 @@ export const App = () => {
   const finish = useCallback(
     async (finalMoves: Move[]) => {
       if (replay) return;
-      const r = await post<CompleteResponse>('/api/complete', { moves: finalMoves, journeyId: journey.current });
+      const r = await post<CompleteResponse>('/api/complete', {
+        moves: finalMoves,
+        hints: tipsRef.current,
+        journeyId: journey.current,
+      });
       if (r.ok) {
         setMe(r.me);
         setStats(r.stats);
@@ -105,6 +113,7 @@ export const App = () => {
         setMoves(nextMoves);
         setAnim(null);
         setCrease(null);
+        setTip(null);
         const v = visible(next);
         if (v.length === target.length && v.every((c, i) => c === target[i])) {
           setTimeout(() => void finish(nextMoves), 650);
@@ -119,12 +128,35 @@ export const App = () => {
     setHistory((h) => h.slice(0, -1));
     setMoves((m) => m.slice(0, -1));
     setCrease(null);
+    setTip(null);
   };
   const restart = () => {
     if (anim || !data) return;
     setHistory([toStrip(data.puzzle.colors)]);
     setMoves([]);
     setCrease(null);
+    setTip(null);
+  };
+  const askHint = () => {
+    if (anim || solved || strip.length === 0) return;
+    const countHint = () => {
+      tipsRef.current += 1;
+      setTips(tipsRef.current);
+    };
+    if (tip?.mv && tip.level === 1) {
+      setTip({ mv: tip.mv, level: 2 });
+      setCrease(tip.mv.k);
+      countHint();
+      return;
+    }
+    // par never exceeds 4, so 4 more folds covers every recoverable position
+    const path = solveFrom(strip, target, 4);
+    const mv = path?.[0] ?? null;
+    setTip({ mv, level: 1 });
+    if (mv) {
+      setCrease(mv.k);
+      countHint();
+    }
   };
 
   useEffect(() => {
@@ -206,7 +238,18 @@ export const App = () => {
           </section>
 
           <section className="board" aria-label="Your paper strip">
-            <Board strip={strip} crease={crease} anim={anim} onCrease={setCrease} onFold={doFold} matches={matches} />
+            <Board
+              strip={strip}
+              crease={crease}
+              anim={anim}
+              onCrease={(k) => {
+                setCrease(k);
+                if (tip?.mv?.k !== k) setTip(null);
+              }}
+              onFold={doFold}
+              matches={matches}
+              hintSide={tip?.level === 2 && tip.mv && crease === tip.mv.k ? tip.mv.dir : null}
+            />
           </section>
 
           <div className="status" aria-live="polite">
@@ -216,6 +259,12 @@ export const App = () => {
                 : 'Matched!'
               : stuck
                 ? 'Too narrow to match — undo a fold.'
+                : tip && !tip.mv
+                  ? 'No short route from here — try Undo or Restart.'
+                  : tip?.mv && crease === tip.mv.k
+                    ? tip.level === 1
+                      ? 'Hint: use this crease. Tap Hint again for the side.'
+                      : `Hint: fold the ${tip.mv.dir === 'L' ? 'left' : 'right'} side over.`
                 : hint
                   ? crease === null
                     ? 'Tap a crease between two squares.'
@@ -231,6 +280,9 @@ export const App = () => {
             </button>
             <button className="btn ghost" onClick={restart} disabled={history.length < 2 || !!anim}>
               Restart
+            </button>
+            <button className="btn ghost" onClick={askHint} disabled={solved || !!anim}>
+              Hint{tips > 0 ? ` · ${tips}` : ''}
             </button>
             {replay && me.result && (
               <button className="btn ghost" onClick={() => setReplay(false)}>
@@ -251,9 +303,10 @@ type BoardProps = {
   onCrease: (k: number) => void;
   onFold: (d: Dir) => void;
   matches: boolean[];
+  hintSide: Dir | null;
 };
 
-const Board = ({ strip, crease, anim, onCrease, onFold, matches }: BoardProps) => {
+const Board = ({ strip, crease, anim, onCrease, onFold, matches, hintSide }: BoardProps) => {
   const n = strip.length;
   const cells = visible(strip);
   const split = anim?.k ?? crease ?? 0;
@@ -273,7 +326,7 @@ const Board = ({ strip, crease, anim, onCrease, onFold, matches }: BoardProps) =
       {split > 0 ? (
         <>
           <div
-            className={`half left ${anim?.dir === 'L' ? 'flip-l' : ''} ${crease !== null && !anim ? 'pickable' : ''}`}
+            className={`half left ${anim?.dir === 'L' ? 'flip-l' : ''} ${crease !== null && !anim ? 'pickable' : ''} ${hintSide === 'L' ? 'hinted' : ''}`}
             onClick={() => onFold('L')}
             role="button"
             aria-label={`Fold the left ${split} squares over to the right`}
@@ -282,7 +335,7 @@ const Board = ({ strip, crease, anim, onCrease, onFold, matches }: BoardProps) =
             {crease !== null && !anim && <span className="arrow">↷</span>}
           </div>
           <div
-            className={`half right ${anim?.dir === 'R' ? 'flip-r' : ''} ${crease !== null && !anim ? 'pickable' : ''}`}
+            className={`half right ${anim?.dir === 'R' ? 'flip-r' : ''} ${crease !== null && !anim ? 'pickable' : ''} ${hintSide === 'R' ? 'hinted' : ''}`}
             onClick={() => onFold('R')}
             role="button"
             aria-label={`Fold the right ${n - split} squares over to the left`}
@@ -325,12 +378,14 @@ type ResultProps = {
 const Result = ({ me, stats, puzzle, isToday, sent, onComment, onSubscribe, onReplay }: ResultProps) => {
   const { par, number } = puzzle;
   const folds = me.result!.folds;
+  const hints = me.result!.hints ?? 0;
   const rows = Array.from(new Set([par, par + 1, par + 2, folds, ...Object.keys(stats.dist).map(Number)]))
     .filter((f) => f >= par)
     .sort((a, b) => a - b)
     .slice(0, 5);
   const max = Math.max(1, ...rows.map((r) => stats.dist[r] ?? 0));
-  const verdict = folds <= par ? 'Clean fold' : folds === par + 1 ? 'Nearly crisp' : 'Folded!';
+  const verdict =
+    hints > 0 ? 'Folded with a nudge' : folds <= par ? 'Clean fold' : folds === par + 1 ? 'Nearly crisp' : 'Folded!';
 
   return (
     <main className="result">
@@ -341,6 +396,12 @@ const Result = ({ me, stats, puzzle, isToday, sent, onComment, onSubscribe, onRe
             <div className="verdict">{verdict}</div>
             <div className="score">
               <b>{folds}</b> fold{folds === 1 ? '' : 's'} <span>· par {par}</span>
+              {hints > 0 && (
+                <span>
+                  {' '}
+                  · {hints} hint{hints === 1 ? '' : 's'}
+                </span>
+              )}
             </div>
           </div>
         </div>

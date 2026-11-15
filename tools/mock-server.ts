@@ -7,7 +7,7 @@ import { makePuzzle, todayUTC, verify } from '../src/shared/crease.ts';
 const root = join(import.meta.dirname, '../dist/client');
 const date = process.env.DATE ?? todayUTC();
 const puzzle = makePuzzle(date);
-let result: { folds: number; moves: unknown } | null = null;
+let result: { folds: number; moves: unknown; hints?: number } | null = null;
 const dist: Record<string, number> = { [puzzle.par]: 41, [puzzle.par + 1]: 63, [puzzle.par + 2]: 22 };
 const me = () => ({ username: 'tester', streak: result ? 3 : 2, best: 5, solvedDays: 9, result });
 const stats = () => ({ solvers: Object.values(dist).reduce((a, b) => a + b, 0), dist });
@@ -22,7 +22,7 @@ createServer(async (req, res) => {
     let body = ''; for await (const c of req) body += c;
     const folds = verify(puzzle, JSON.parse(body).moves);
     if (folds === null) return json({ ok: false, error: 'bad' }, 400);
-    result = { folds, moves: JSON.parse(body).moves }; dist[folds] = (dist[folds] ?? 0) + 1;
+    result = { folds, moves: JSON.parse(body).moves, hints: JSON.parse(body).hints }; dist[folds] = (dist[folds] ?? 0) + 1;
     return json({ ok: true, me: me(), stats: stats() });
   }
   if (url.pathname.startsWith('/api/')) return json({ ok: true });

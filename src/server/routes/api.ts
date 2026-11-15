@@ -70,8 +70,11 @@ api.post('/complete', async (c) => {
   const folds = verify(puzzle, body.moves);
   if (folds === null) return c.json<CompleteResponse>({ ok: false, error: 'That fold sequence does not solve it' }, 400);
 
+  // client-reported, but it can only make a result look worse, so a range check is enough
+  const hints = typeof body.hints === 'number' && Number.isInteger(body.hints) && body.hints >= 0 && body.hints < 100 ? body.hints : 0;
   const resultKey = `day:${date}:results`;
-  const isFirst = (await redis.hSetNX(resultKey, username, JSON.stringify({ folds, moves: body.moves }))) === 1;
+  const isFirst =
+    (await redis.hSetNX(resultKey, username, JSON.stringify({ folds, moves: body.moves, hints }))) === 1;
   if (isFirst) {
     await redis.hIncrBy(`day:${date}:dist`, String(folds), 1);
     const uKey = `user:${username}`;
@@ -115,12 +118,12 @@ api.post('/comment', async (c) => {
     redis.get(`post:${postId}:sticky`),
   ]);
   if (!result) return c.json({ ok: false, error: 'Solve it first' }, 400);
-  const { folds } = JSON.parse(result) as { folds: number };
+  const { folds, hints = 0 } = JSON.parse(result) as { folds: number; hints?: number };
   const me = await getMe(username, date);
   const marks = '◆'.repeat(Math.min(folds, puzzle.par)) + '◇'.repeat(Math.max(0, folds - puzzle.par));
-  const text = `Crease #${puzzle.number}: ${folds} fold${folds === 1 ? '' : 's'} (par ${puzzle.par}) ${marks}${
-    me.streak > 1 ? ` · ${me.streak}-day streak` : ''
-  }`;
+  const hintNote = hints > 0 ? ` · ${hints} hint${hints === 1 ? '' : 's'}` : '';
+  const streakNote = me.streak > 1 ? ` · ${me.streak}-day streak` : '';
+  const text = `Crease #${puzzle.number}: ${folds} fold${folds === 1 ? '' : 's'} (par ${puzzle.par}) ${marks}${hintNote}${streakNote}`;
   try {
     const id = (sticky ?? postId) as `t1_${string}` | `t3_${string}`;
     await reddit.submitComment({ id, text, runAs: 'USER' });

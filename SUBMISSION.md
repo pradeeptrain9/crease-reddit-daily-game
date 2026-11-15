@@ -23,6 +23,7 @@ colored squares and the same target pattern.
 - **A weekly difficulty curve.** Monday and Tuesday take 2 folds, midweek takes 3, and the weekend takes 4
   folds on a longer strip.
 - **Undo and Restart are free**, so players can experiment without losing anything.
+- **Hints when stuck.** Hint searches from the player's current position. The first tap marks the next crease and a second tap names the side. Hints are noted on the result card and in shared scores, so a hinted solve is never passed off as a clean one.
 
 When you solve it, a result card shows:
 - your fold count against par

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fold, makePuzzle, minFolds, solve, toStrip, verify, visible, prevDay, dayNumber } from './crease.ts';
+import { fold, makePuzzle, minFolds, solve, solveFrom, toStrip, verify, visible, prevDay, dayNumber } from './crease.ts';
 
 test('fold L puts reversed flap on top, reading from crease', () => {
   // [0][1][2] | [3]  fold left over -> crease at left edge
@@ -41,4 +41,13 @@ test('verify rejects junk and accepts a found solution', () => {
 test('dates', () => {
   assert.equal(prevDay('2026-12-01'), '2026-11-30');
   assert.equal(dayNumber('2026-11-11'), 1);
+});
+
+test('hint search continues from a partly folded strip', () => {
+  const p = makePuzzle('2026-11-15');
+  const path = solve(p.colors, p.target, p.par)!;
+  const mid = fold(toStrip(p.colors), path[0]!);
+  const rest = solveFrom(mid, p.target, p.par)!;
+  assert.ok(rest.length <= p.par - 1);
+  assert.equal(verify(p, [path[0], ...rest]), rest.length + 1);
 });
